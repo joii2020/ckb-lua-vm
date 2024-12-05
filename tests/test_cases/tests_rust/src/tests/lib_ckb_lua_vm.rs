@@ -25,7 +25,8 @@ fn debug_printer(script: &Byte32, msg: &str) {
         "Script({:x}{:x}{:x}{:x}{:x})",
         slice[0], slice[1], slice[2], slice[3], slice[4]
     );
-    println!("{:?}: {}", str, msg);
+    let str = format!("{:?}: {}", str, msg);
+    println!("{:?}", str);
 }
 
 fn gen_tx(dummy: &mut DummyDataLoader) -> TransactionView {

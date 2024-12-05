@@ -207,11 +207,13 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     return ret;
   }
   if (len < sizeof(header)) {
+    ckb_debug("--ERR mk1");
     return ERROR_INVALID_ELF;
   }
   if ((header.e_phentsize != sizeof(Elf64_Phdr)) ||
       (header.e_shentsize != sizeof(Elf64_Shdr)) || (header.e_phnum > 16) ||
       (header.e_shnum > 32)) {
+    ckb_debug("--ERR mk2");
     return ERROR_INVALID_ELF;
   }
   /* Parse program headers and load relevant parts */
@@ -223,6 +225,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     return ret;
   }
   if (len < sizeof(Elf64_Phdr) * header.e_phnum) {
+    ckb_debug("--ERR mk3");
     return ERROR_INVALID_ELF;
   }
   uint64_t max_consumed_size = 0;
@@ -234,10 +237,12 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
         uint64_t vaddr = ph->p_vaddr - prepad;
         uint64_t memsz = 0;
         if (roundup(prepad + ph->p_memsz, RISCV_PGSIZE, &memsz)) {
+          ckb_debug("--ERR mk4");
           return ERROR_INVALID_ELF;
         }
         unsigned long size = 0;
         if (__builtin_uaddl_overflow(vaddr, memsz, &size)) {
+          ckb_debug("--ERR mk5");
           return ERROR_INVALID_ELF;
         }
         if (size > aligned_size) {
@@ -245,6 +250,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
         }
         uint8_t *addr2 = addr_offset_checked(aligned_addr, aligned_size, vaddr);
         if (addr2 == 0) {
+          ckb_debug("--ERR mk6");
           return ERROR_INVALID_ELF;
         }
         /*
@@ -272,15 +278,18 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
         uint64_t size = 0;
         uint64_t gap_len = 0;
         if (filesz > memsz) {
+          ckb_debug("--ERR mk7");
           return ERROR_INVALID_ELF;
         }
         gap_len = memsz - filesz;
 
         if (__builtin_uaddl_overflow(ph->p_vaddr, memsz, &size)) {
+          ckb_debug("--ERR mk8");
           return ERROR_INVALID_ELF;
         }
         uint64_t consumed_end = 0;
         if (roundup(size, RISCV_PGSIZE, &consumed_end)) {
+          ckb_debug("--ERR mk9");
           return ERROR_INVALID_ELF;
         }
         if (consumed_end > aligned_size) {
@@ -289,6 +298,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
         uint8_t *addr2 =
             addr_offset_checked(aligned_addr, aligned_size, ph->p_vaddr);
         if (addr2 == 0) {
+          ckb_debug("--ERR mk10");
           return ERROR_INVALID_ELF;
         }
         uint64_t read_len = filesz;
@@ -298,6 +308,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
           return ret;
         }
         if (read_len < filesz) {
+          ckb_debug("--ERR mk11");
           return ERROR_INVALID_ELF;
         }
         if (gap_len > 0) {
@@ -307,6 +318,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
           if (addr3 != 0 && addr4 != 0) {
             memset(addr3, 0, gap_len);
           } else {
+            ckb_debug("--ERR mk12");
             return ERROR_INVALID_ELF;
           }
         }
@@ -326,9 +338,11 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     return ret;
   }
   if (len < sizeof(Elf64_Shdr) * header.e_shnum) {
+    ckb_debug("--ERR mk13");
     return ERROR_INVALID_ELF;
   }
   if (header.e_shstrndx >= 32 || header.e_shstrndx >= header.e_shnum) {
+    ckb_debug("--ERR mk14");
     return ERROR_INVALID_ELF;
   }
   /*
@@ -338,6 +352,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
   Elf64_Shdr *shshrtab = &section_headers[header.e_shstrndx];
   char shrtab[4096];
   if (shshrtab->sh_size > 4096) {
+    ckb_debug("--ERR mk15");
     return ERROR_INVALID_ELF;
   }
   uint64_t shrtab_len = shshrtab->sh_size;
@@ -347,12 +362,14 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     return ret;
   }
   if (shrtab_len < shshrtab->sh_size) {
+    ckb_debug("--ERR mk16");
     return ERROR_INVALID_ELF;
   }
   for (int i = 0; i < header.e_shnum; i++) {
     const Elf64_Shdr *sh = &section_headers[i];
     if (sh->sh_type == SHT_RELA) {
       if (sh->sh_entsize != sizeof(Elf64_Rela)) {
+        ckb_debug("--ERR mk17");
         return ERROR_INVALID_ELF;
       }
       size_t relocation_size = sh->sh_size / sh->sh_entsize;
@@ -367,6 +384,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
           return ret;
         }
         if (load_length < load_size * sizeof(Elf64_Rela)) {
+          ckb_debug("--ERR mk18");
           return ERROR_INVALID_ELF;
         }
         relocation_size -= load_size;
@@ -374,15 +392,19 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
         for (size_t j = 0; j < load_size; j++) {
           Elf64_Rela *r = &relocations[j];
           uint32_t t = (uint32_t)r->r_info;
+
           if (t != R_RISCV_RELATIVE && t != R_RISCV_JUMP_SLOT) {
+            printf("--- r_info: %d\n", t);
             /*
              * Only relative and jump slot relocations are supported now,
              * we might add more later.
              */
+            ckb_debug("--ERR mk19");
             return ERROR_INVALID_ELF;
           }
           if (r->r_offset >= (aligned_size - sizeof(uint64_t)) ||
               r->r_addend >= (int64_t)(aligned_size) || r->r_addend < 0) {
+                ckb_debug("--ERR mk20");
             return ERROR_INVALID_ELF;
           }
           uint64_t temp = (uint64_t)(aligned_addr + r->r_addend);
@@ -392,11 +414,13 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     } else if (sh->sh_type == SHT_DYNSYM) {
       /* We assume one ELF file only has one DYNSYM section now */
       if (sh->sh_entsize != sizeof(Elf64_Sym)) {
+        ckb_debug("--ERR mk21");
         return ERROR_INVALID_ELF;
       }
       uint8_t *addr2 =
           addr_offset_checked(aligned_addr, aligned_size, sh->sh_addr);
       if (addr2 == 0) {
+        ckb_debug("--ERR mk22");
         return ERROR_INVALID_ELF;
       }
       context->dynsyms = (Elf64_Sym *)addr2;
@@ -404,6 +428,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
 
       uint8_t *addr3 = addr_offset_with_context(addr2, sh->sh_size, context);
       if (addr3 == 0) {
+        ckb_debug("--ERR mk23");
         return ERROR_INVALID_ELF;
       }
     } else if (sh->sh_type == SHT_STRTAB) {
@@ -416,6 +441,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
           const uint8_t *addr2 =
               addr_offset_checked(aligned_addr, aligned_size, sh->sh_addr);
           if (addr2 == 0) {
+            ckb_debug("--ERR mk24");
             return ERROR_INVALID_ELF;
           }
           context->dynstr = (const char *)addr2;
@@ -424,6 +450,7 @@ int ckb_dlopen2(const uint8_t *dep_cell_hash, uint8_t hash_type,
     }
   }
   if (context->dynsyms == NULL || context->dynstr == NULL) {
+    ckb_debug("--ERR mk25");
     return ERROR_INVALID_ELF;
   }
   *handle = (void *)context;
